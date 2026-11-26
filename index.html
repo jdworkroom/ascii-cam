@@ -47,7 +47,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 <canvas id="cv" width="720" height="1280"></canvas>
 <video id="vid" playsinline muted autoplay></video>
 
-<div id="top"><button class="pill" id="bSet">문자<small id="lSet">.-*#</small></button></div>
+<div id="top"><button class="pill" id="bSet">문자<small id="lSet">기본</small></button></div>
 
 <div id="row">
   <button class="pill" id="bMode">ASCII</button>
@@ -56,7 +56,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 </div>
 
 <div id="panel">
-  <label><span>크기</span><input id="sSize" type="range" min="6" max="40" step="1" value="12"><output id="oSize">12</output></label>
+  <label><span>크기</span><input id="sSize" type="range" min="37" max="80" step="1" value="37"><output id="oSize">37</output></label>
   <label><span>대비</span><input id="sCon" type="range" min="0.5" max="3" step="0.05" value="1.4"><output id="oCon">1.4</output></label>
 </div>
 
@@ -76,7 +76,38 @@ const off = document.createElement('canvas');
 const octx = off.getContext('2d', { willReadFrequently: true });
 
 const W = 720, H = 1280, P = H / 2;
-const RAMPS = ['.-*#', '.,-:;~=+*#%@'];               // 어두움 → 밝음
+// 문자 범위 (순서는 상관없음: 획 양을 재서 자동으로 밝기 순 정렬)
+const MONO = 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace';
+const SETS = [
+  { name: '기본', chars: '.-*#', font: MONO, w: 0.6 },
+  { name: '코드', chars: '.:;,\'"`-_~^()[]{}<>=+/\\|!?*&%$#@', font: MONO, w: 0.6 },
+  { name: '영문', chars: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', font: MONO, w: 0.6 },
+  { name: '한글', chars: 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ',
+    font: '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR","Malgun Gothic",sans-serif', w: 1 },
+  { name: '숫자', chars: '0123456789', font: MONO, w: 0.6 }
+];
+// 각 문자 집합: 글자마다 잉크 양을 재고, 밝기(0~255) → 글자 표를 만든다
+function prepSet(set) {
+  const S = 64, c = document.createElement('canvas'); c.width = Math.ceil(S * set.w); c.height = S;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.font = `${S * 0.9}px ${set.font}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#fff';
+  const glyphs = [...new Set([...set.chars])].map(g => {
+    x.clearRect(0, 0, c.width, c.height); x.fillText(g, c.width / 2, S / 2);
+    const d = x.getImageData(0, 0, c.width, c.height).data; let sum = 0;
+    for (let i = 3; i < d.length; i += 4) sum += d[i];
+    return { g, v: sum };
+  }).sort((a, b) => a.v - b.v);
+  const lo = glyphs[0].v, hi = glyphs[glyphs.length - 1].v || 1;
+  glyphs.forEach(o => o.n = (o.v - lo) / Math.max(1, hi - lo));
+  const blank = set.w === 1 ? '\u3000' : ' ';        // 가장 어두운 곳은 비워서 검은 배경이 보이게 (기본 세트 제외)
+  set.lut = Array.from({ length: 256 }, (_, i) => {
+    if (set.name !== '기본' && i < 30) return blank;
+    const t = (set.name === '기본' ? i : (i - 30) * 255 / 225) / 255; let best = glyphs[0], bd = 9;
+    for (const o of glyphs) { const dd = Math.abs(o.n - t); if (dd < bd) { bd = dd; best = o; } }
+    return best.g;
+  });
+}
+SETS.forEach(prepSet);
 // 사물 이모지와 대표 색
 const EMOJI = [
   ['🖤', 20, 20, 22], ['🎱', 45, 45, 50], ['🩶', 140, 140, 145], ['🤍', 240, 240, 240], ['🥚', 235, 220, 190],
@@ -86,7 +117,8 @@ const EMOJI = [
 ];
 
 let mode = 'ascii', set = 0, contrast = 1.4, ready = false, lastT = 0;
-const sizes = { ascii: 12, emoji: 22 };
+const sizes = { ascii: 37, emoji: 22 };
+const RANGE = { ascii: [37, 80], emoji: [12, 60] };
 let lastText = '';
 
 // 색 → 이모지 번호 표 (32단계 x 3)
@@ -132,7 +164,8 @@ function draw() {
   cover(ctx, vid, W, P, W / P);                       // 위: 원본
 
   const size = sizes[mode];
-  const cw = mode === 'emoji' ? size : size * 0.6, ch = size;
+  const cs = SETS[set];
+  const cw = mode === 'emoji' ? size : size * cs.w, ch = size;
   const cols = Math.floor(W / cw), rows = Math.floor(P / ch);
   if (off.width !== cols || off.height !== rows) { off.width = cols; off.height = rows; }
   cover(octx, vid, cols, rows, (cols * cw) / (rows * ch));
@@ -141,9 +174,9 @@ function draw() {
   const lines = [];
 
   if (mode === 'ascii') {
-    const ramp = RAMPS[set], n = ramp.length;
+    const lut = cs.lut;
     ctx.fillStyle = '#fff';
-    ctx.font = `${size}px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace`;
+    ctx.font = `${size * (cs.w === 1 ? 0.9 : 1)}px ${cs.font}`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     for (let r = 0; r < rows; r++) {
       let line = '';
@@ -151,9 +184,9 @@ function draw() {
         const k = (r * cols + c) * 4;
         let l = (0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2]) / 255;
         l = (l - .5) * contrast + .5;
-        const g = ramp[Math.max(0, Math.min(n - 1, Math.floor(l * n)))];
+        const g = lut[Math.max(0, Math.min(255, Math.round(l * 255)))];
         line += g;
-        ctx.fillText(g, ox + c * cw + cw / 2, oy + r * ch + ch / 2);
+        if (g !== ' ' && g !== '\u3000') ctx.fillText(g, ox + c * cw + cw / 2, oy + r * ch + ch / 2);
       }
       lines.push(line);
     }
@@ -195,7 +228,10 @@ async function startCam() {
 $('#go').onclick = startCam;
 
 // ---------- 조절 ----------
-function syncSize() { $('#sSize').value = sizes[mode]; $('#oSize').textContent = sizes[mode]; }
+function syncSize() {
+  const s = $('#sSize'); s.min = RANGE[mode][0]; s.max = RANGE[mode][1];
+  s.value = sizes[mode]; $('#oSize').textContent = sizes[mode];
+}
 $('#sSize').oninput = e => { sizes[mode] = +e.target.value; $('#oSize').textContent = sizes[mode]; };
 $('#sCon').oninput = e => { contrast = +e.target.value; $('#oCon').textContent = contrast.toFixed(1); };
 $('#bMode').onclick = () => {
@@ -204,7 +240,7 @@ $('#bMode').onclick = () => {
   $('#top').style.visibility = mode === 'ascii' ? 'visible' : 'hidden';
   syncSize();
 };
-$('#bSet').onclick = () => { set = (set + 1) % RAMPS.length; $('#lSet').textContent = set ? '.,-:;~…@' : '.-*#'; };
+$('#bSet').onclick = () => { set = (set + 1) % SETS.length; $('#lSet').textContent = SETS[set].name; };
 
 let toastTimer;
 function toast(m) { const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.style.display = 'none', 1800); }
