@@ -10,33 +10,60 @@
 html,body{margin:0;height:100%;background:#000;color:#fff;overflow:hidden;
   font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
 button{font:inherit;color:inherit;cursor:pointer}
-#cv{position:fixed;inset:0;width:100vw;height:100dvh;object-fit:cover;display:block;background:#000}
+body{display:flex;flex-direction:column;height:100dvh;
+  padding:calc(env(safe-area-inset-top) + 12px) 0 calc(env(safe-area-inset-bottom) + 10px)}
 #vid{position:absolute;width:2px;height:2px;opacity:0;pointer-events:none}
 
-#top{position:fixed;top:calc(env(safe-area-inset-top) + 12px);right:12px;display:flex;gap:8px}
-.pill{border:none;background:#0009;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  border-radius:999px;height:36px;padding:0 14px;font-size:13px;font-weight:600;color:#fff}
-.pill small{opacity:.6;font-weight:500;margin-left:4px;font-family:ui-monospace,Menlo,monospace}
+/* 두 컷 프레임 */
+#flip{position:fixed;top:calc(env(safe-area-inset-top) + 10px);right:14px;z-index:2;width:40px;height:40px;border-radius:50%;
+  border:none;background:#1c1c1ee6;font-size:19px;display:flex;align-items:center;justify-content:center}
+#stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 16px}
+#cv{max-width:100%;max-height:100%;aspect-ratio:9/16;border-radius:6px;background:#0b0b0b;
+  box-shadow:0 0 0 1px #222,0 18px 50px #000}
 
-#row{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 112px);transform:translateX(-50%);
-  width:min(92vw,360px);display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
-#row .pill:first-child{justify-self:start}
-#row .pill:last-child{justify-self:end}
-#shutter{width:70px;height:70px;border-radius:50%;border:4px solid #fff;background:none;padding:4px;display:flex}
-#shutter i{flex:1;border-radius:50%;background:#fff;transition:transform .12s}
-#shutter:active i{transform:scale(.88)}
+/* 하단 바: 설정 · 셔터 · 복사 */
+#bar{flex:none;height:104px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 28px}
+.side{justify-self:start;display:flex;flex-direction:column;align-items:center;gap:4px;border:none;background:none;
+  font-size:11px;color:#fffb;padding:6px}
+.side:last-child{justify-self:end}
+.side i{width:42px;height:42px;border-radius:50%;background:#1c1c1e;display:flex;align-items:center;justify-content:center;
+  font-style:normal;font-size:18px;color:#fff}
+#shutter{width:72px;height:72px;border-radius:50%;border:4px solid #fff;background:none;padding:4px;display:flex}
+#shutter b{flex:1;border-radius:50%;background:#fff;transition:transform .12s}
+#shutter:active b{transform:scale(.88)}
 
-#panel{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 16px);transform:translateX(-50%);
-  width:min(92vw,360px);display:flex;flex-direction:column;gap:10px;padding:12px 16px;border-radius:16px;
-  background:#000a;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:12px}
-#panel label{display:flex;align-items:center;gap:10px}
-#panel label span{width:48px;flex:none;color:#fffc}
-#panel input{flex:1;accent-color:#fff}
-#panel output{width:30px;text-align:right;font-variant-numeric:tabular-nums}
+/* 설정 시트 */
+#dim{position:fixed;inset:0;background:#0008;opacity:0;pointer-events:none;transition:opacity .2s}
+#sheet{position:fixed;left:0;right:0;bottom:0;background:#1c1c1e;border-radius:18px 18px 0 0;
+  padding:10px 20px calc(env(safe-area-inset-bottom) + 22px);transform:translateY(105%);transition:transform .25s ease;
+  display:flex;flex-direction:column;gap:16px;font-size:13px}
+body.open #sheet{transform:none}
+body.open #dim{opacity:1;pointer-events:auto}
+#sheet .grab{width:36px;height:5px;border-radius:3px;background:#48484a;margin:0 auto 2px}
+#sheet h3{margin:0;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+#sheet h3 button{border:none;background:none;color:#0a84ff;font-size:15px;font-weight:600;padding:0}
+.field{display:flex;flex-direction:column;gap:8px}
+.field > span{color:#fff9;font-size:12px}
+.seg{display:flex;background:#2c2c2e;border-radius:9px;padding:2px}
+.seg button{flex:1;border:none;background:none;border-radius:7px;padding:7px 0;font-size:13px;font-weight:600;color:#fffb}
+.seg button.on{background:#636366;color:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{border:1px solid #3a3a3c;background:none;border-radius:999px;padding:6px 13px;font-size:13px;color:#fffc}
+.chips button.on{background:#fff;color:#000;border-color:#fff}
+.colors{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.colors button{width:30px;height:30px;border-radius:50%;border:none;padding:0;box-shadow:inset 0 0 0 1px #fff3}
+.colors button.on{box-shadow:0 0 0 2px #1c1c1e,0 0 0 4px #fff}
+#customBg{position:relative;width:30px;height:30px;border-radius:50%;overflow:hidden;
+  background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)}
+#customBg.on{box-shadow:0 0 0 2px #1c1c1e,0 0 0 4px #fff}
+#customBg input{position:absolute;inset:-8px;width:46px;height:46px;opacity:0;border:none;padding:0}
+.slider{display:flex;align-items:center;gap:12px}
+.slider input{flex:1;accent-color:#fff}
+.slider output{width:32px;text-align:right;font-variant-numeric:tabular-nums}
 
 #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none}
-#toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 64px);transform:translateX(-50%);
-  background:#000c;padding:8px 14px;border-radius:999px;font-size:12.5px;display:none;white-space:nowrap}
+#toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 20px);transform:translateX(-50%);
+  background:#1c1c1ee6;padding:8px 14px;border-radius:999px;font-size:12.5px;display:none;white-space:nowrap}
 #start{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
   background:#000;text-align:center;padding:24px}
 #start p{margin:0;font-size:13px;color:#fff9;max-width:280px;line-height:1.6}
@@ -44,26 +71,45 @@ button{font:inherit;color:inherit;cursor:pointer}
 </style>
 </head>
 <body>
-<canvas id="cv" width="720" height="1280"></canvas>
+<button id="flip" aria-label="카메라 전환">⟲</button>
+<div id="stage"><canvas id="cv" width="720" height="1280"></canvas></div>
 <video id="vid" playsinline muted autoplay></video>
 
-<div id="top"><button class="pill" id="bSet">문자<small id="lSet">기본</small></button></div>
-
-<div id="row">
-  <button class="pill" id="bMode">ASCII</button>
-  <button id="shutter" aria-label="촬영"><i></i></button>
-  <button class="pill" id="bCopy">복사</button>
+<div id="bar">
+  <button class="side" id="bCfg"><i>⚙︎</i>설정</button>
+  <button id="shutter" aria-label="촬영"><b></b></button>
+  <button class="side" id="bCopy"><i>⧉</i>복사</button>
 </div>
 
-<div id="panel">
-  <label><span>크기</span><input id="sSize" type="range" min="6" max="80" step="1" value="37"><output id="oSize">37</output></label>
-  <label><span>대비</span><input id="sCon" type="range" min="0.5" max="3" step="0.05" value="1.4"><output id="oCon">1.4</output></label>
+<div id="dim"></div>
+<div id="sheet">
+  <div class="grab"></div>
+  <h3>설정 <button id="bDone">완료</button></h3>
+  <div class="field"><span>표현</span>
+    <div class="seg" id="segMode"><button data-m="ascii" class="on">문자</button><button data-m="emoji">이모지</button></div>
+  </div>
+  <div class="field" id="fSet"><span>문자 범위</span><div class="chips" id="chips"></div></div>
+  <div class="field"><span>아래 칸 배경색</span>
+    <div class="colors" id="bgColors">
+      <button data-c="#000000" style="background:#000" class="on"></button>
+      <button data-c="#ffffff" style="background:#fff"></button>
+      <button data-c="#0b1a3a" style="background:#0b1a3a"></button>
+      <button data-c="#1f5c3a" style="background:#1f5c3a"></button>
+      <button data-c="#e0322b" style="background:#e0322b"></button>
+      <button data-c="#ffd60a" style="background:#ffd60a"></button>
+      <button data-c="#ff8fc6" style="background:#ff8fc6"></button>
+      <label id="customBg" aria-label="직접 고르기"><input id="bgPick" type="color" value="#3355ff"></label>
+    </div></div>
+  <div class="field"><span>크기</span>
+    <div class="slider"><input id="sSize" type="range" min="6" max="80" step="1" value="37"><output id="oSize">37</output></div></div>
+  <div class="field"><span>대비</span>
+    <div class="slider"><input id="sCon" type="range" min="0.5" max="3" step="0.05" value="1.4"><output id="oCon">1.4</output></div></div>
 </div>
 
 <div id="flash"></div>
 <div id="toast"></div>
 <div id="start">
-  <p id="msg">카메라를 켜면 위에는 원본, 아래에는 ASCII가 나와요.</p>
+  <p id="msg">위 칸에는 흑백 사진, 아래 칸에는 글자로 그린 내가 나와요.</p>
   <button id="go">카메라 켜기</button>
 </div>
 
@@ -75,7 +121,16 @@ const vid = $('#vid');
 const off = document.createElement('canvas');
 const octx = off.getContext('2d', { willReadFrequently: true });
 
-const W = 720, H = 1280, P = H / 2;
+const W = 720, H = 1280;
+// 두 컷 프레임 배치
+const PAD = 34, GAP = 18, FOOT = 74;
+const CW = W - PAD * 2, CH = Math.floor((H - PAD - GAP - FOOT) / 2);
+const CUT1 = { x: PAD, y: PAD }, CUT2 = { x: PAD, y: PAD + CH + GAP };
+function clipRound(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); ctx.clip();
+}
 // 문자 범위 (순서는 상관없음: 획 양을 재서 자동으로 밝기 순 정렬)
 const MONO = 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace';
 const SETS = [
@@ -118,6 +173,8 @@ const EMOJI = [
   ['🍆', 85, 40, 95], ['🌸', 245, 185, 205], ['🥥', 125, 85, 55], ['🍫', 80, 45, 30], ['🍞', 210, 160, 95]
 ];
 
+let facing = 'user', mirror = true, stream = null;
+let bg = '#000000', bgLight = false;                 // 아래 칸 배경색 (밝으면 글자는 검정, 명암 반전)
 let mode = 'ascii', set = 0, contrast = 1.4, ready = false, lastT = 0;
 const sizes = { ascii: 37, emoji: 22 };
 const RANGE = { ascii: [6, 80], emoji: [12, 60] };
@@ -155,7 +212,8 @@ function cover(c, v, w, h, ta) {
   if (!vw || !vh) return;
   let sx = 0, sy = 0, sw = vw, sh = vh;
   if (vw / vh > ta) { sw = vh * ta; sx = (vw - sw) / 2; } else { sh = vw / ta; sy = (vh - sh) / 2; }
-  c.save(); c.translate(w, 0); c.scale(-1, 1);       // 셀카처럼 좌우 반전
+  c.save();
+  if (mirror) { c.translate(w, 0); c.scale(-1, 1); }   // 전면은 셀카처럼 좌우 반전
   c.drawImage(v, sx, sy, sw, sh, 0, 0, w, h); c.restore();
 }
 const clamp = v => v < 0 ? 0 : v > 255 ? 255 : v;
@@ -214,26 +272,39 @@ function updateMask(cols, rows, ta) {
 }
 
 function draw() {
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#0b0b0b'; ctx.fillRect(0, 0, W, H);           // 프레임
+  ctx.fillStyle = '#000';
+  ctx.fillRect(CUT1.x, CUT1.y, CW, CH);
+  ctx.fillStyle = bg; ctx.fillRect(CUT2.x, CUT2.y, CW, CH);
+  ctx.fillStyle = '#5a5a5a'; ctx.font = `600 18px ${MONO}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('A S C I I   C A M', W / 2, CUT2.y + CH + FOOT / 2);
   if (!ready) return;
-  cover(ctx, vid, W, P, W / P);                       // 위: 원본
 
+  // 1컷: 흑백 사진
+  ctx.save(); clipRound(CUT1.x, CUT1.y, CW, CH, 4); ctx.translate(CUT1.x, CUT1.y);
+  cover(ctx, vid, CW, CH, CW / CH);
+  ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, CW, CH);
+  ctx.restore();
+
+  // 2컷: 글자로 그린 인물
+  ctx.save(); clipRound(CUT2.x, CUT2.y, CW, CH, 4);
   const size = sizes[mode];
   const cs = SETS[set];
   const cw = mode === 'emoji' ? size : size * cs.w, ch = size;
-  const cols = Math.floor(W / cw), rows = Math.floor(P / ch);
+  const cols = Math.max(1, Math.floor(CW / cw)), rows = Math.max(1, Math.floor(CH / ch));
   if (off.width !== cols || off.height !== rows) { off.width = cols; off.height = rows; }
   const ta = (cols * cw) / (rows * ch);
   cover(octx, vid, cols, rows, ta);
   const d = octx.getImageData(0, 0, cols, rows).data;
   let mask = null;
   if (segState === 'on') { try { mask = updateMask(cols, rows, ta); } catch (e) { console.error(e); } }
-  const ox = (W - cols * cw) / 2, oy = P + (P - rows * ch) / 2;
+  const ox = CUT2.x + (CW - cols * cw) / 2, oy = CUT2.y + (CH - rows * ch) / 2;
   const lines = [];
 
   if (mode === 'ascii') {
     const lut = cs.lut;
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = bgLight ? '#000' : '#fff';
     ctx.font = `${size * (cs.w === 1 ? 0.9 : 1)}px ${cs.font}`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     for (let r = 0; r < rows; r++) {
@@ -243,6 +314,7 @@ function draw() {
         if (mask && mask[r * cols + c] < .5) { line += cs.w === 1 ? '\u3000' : ' '; continue; }
         let l = (0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2]) / 255;
         l = (l - .5) * contrast + .5;
+        if (bgLight) l = 1 - l;                          // 밝은 배경: 어두운 곳을 진한 글자로
         const g = lut[Math.max(0, Math.min(255, Math.round(l * 255)))];
         line += g;
         if (g !== ' ' && g !== '\u3000') ctx.fillText(g, ox + c * cw + cw / 2, oy + r * ch + ch / 2);
@@ -264,6 +336,7 @@ function draw() {
       lines.push(line);
     }
   }
+  ctx.restore();
   lastText = lines.join('\n');
 }
 
@@ -276,8 +349,12 @@ async function startCam() {
     $('#msg').textContent = '카메라는 HTTPS 주소에서만 켜져요.'; return;
   }
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
     vid.srcObject = stream; await vid.play();
+    const st = stream.getVideoTracks()[0].getSettings ? stream.getVideoTracks()[0].getSettings() : {};
+    mirror = (st.facingMode || facing) !== 'environment';
+    cellMask = null;
     ready = true; $('#start').style.display = 'none';
     loadSeg();
   } catch (e) {
@@ -287,21 +364,47 @@ async function startCam() {
   }
 }
 $('#go').onclick = startCam;
+$('#flip').onclick = async () => {
+  if (!ready) return;
+  facing = facing === 'user' ? 'environment' : 'user';
+  await startCam();
+  if (ready && stream) {
+    const got = (stream.getVideoTracks()[0].getSettings() || {}).facingMode;
+    if (got && got !== facing) toast('다른 카메라를 찾지 못했어요');
+  }
+};
 
-// ---------- 조절 ----------
+// ---------- 설정 시트 ----------
+const body = document.body;
+$('#bCfg').onclick = () => body.classList.add('open');
+$('#bDone').onclick = $('#dim').onclick = () => body.classList.remove('open');
+SETS.forEach((cs, i) => {
+  const b = document.createElement('button'); b.textContent = cs.name; if (i === set) b.className = 'on';
+  b.onclick = () => { set = i; [...$('#chips').children].forEach((x, j) => x.classList.toggle('on', j === i)); };
+  $('#chips').appendChild(b);
+});
 function syncSize() {
   const s = $('#sSize'); s.min = RANGE[mode][0]; s.max = RANGE[mode][1];
   s.value = sizes[mode]; $('#oSize').textContent = sizes[mode];
 }
 $('#sSize').oninput = e => { sizes[mode] = +e.target.value; $('#oSize').textContent = sizes[mode]; };
 $('#sCon').oninput = e => { contrast = +e.target.value; $('#oCon').textContent = contrast.toFixed(1); };
-$('#bMode').onclick = () => {
-  mode = mode === 'ascii' ? 'emoji' : 'ascii';
-  $('#bMode').textContent = mode === 'ascii' ? 'ASCII' : 'EMOJI';
-  $('#top').style.visibility = mode === 'ascii' ? 'visible' : 'hidden';
+function setBg(c, el) {
+  bg = c;
+  const n = parseInt(c.slice(1), 16), L = (0.299 * (n >> 16 & 255) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255;
+  bgLight = L > 0.55;
+  document.querySelectorAll('#bgColors button').forEach(b => b.classList.toggle('on', b === el));
+  $('#customBg').classList.toggle('on', el === $('#customBg'));
+}
+document.querySelectorAll('#bgColors button').forEach(b => b.onclick = () => setBg(b.dataset.c, b));
+$('#bgPick').oninput = e => setBg(e.target.value, $('#customBg'));
+$('#segMode').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  mode = b.dataset.m;
+  [...$('#segMode').children].forEach(x => x.classList.toggle('on', x === b));
+  $('#fSet').style.display = mode === 'ascii' ? '' : 'none';
   syncSize();
 };
-$('#bSet').onclick = () => { set = (set + 1) % SETS.length; $('#lSet').textContent = SETS[set].name; };
 
 let toastTimer;
 function toast(m, ms = 1800) { const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.style.display = 'none', ms); }
