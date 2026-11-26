@@ -9,8 +9,23 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:#000;color:#fff;overflow:hidden;
   font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+button{font:inherit;color:inherit;cursor:pointer}
 #cv{position:fixed;inset:0;width:100vw;height:100dvh;object-fit:cover;display:block;background:#000}
 #vid{position:absolute;width:2px;height:2px;opacity:0;pointer-events:none}
+
+#top{position:fixed;top:calc(env(safe-area-inset-top) + 12px);right:12px;display:flex;gap:8px}
+.pill{border:none;background:#0009;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-radius:999px;height:36px;padding:0 14px;font-size:13px;font-weight:600;color:#fff}
+.pill small{opacity:.6;font-weight:500;margin-left:4px;font-family:ui-monospace,Menlo,monospace}
+
+#row{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 112px);transform:translateX(-50%);
+  width:min(92vw,360px);display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
+#row .pill:first-child{justify-self:start}
+#row .pill:last-child{justify-self:end}
+#shutter{width:70px;height:70px;border-radius:50%;border:4px solid #fff;background:none;padding:4px;display:flex}
+#shutter i{flex:1;border-radius:50%;background:#fff;transition:transform .12s}
+#shutter:active i{transform:scale(.88)}
+
 #panel{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 16px);transform:translateX(-50%);
   width:min(92vw,360px);display:flex;flex-direction:column;gap:10px;padding:12px 16px;border-radius:16px;
   background:#000a;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:12px}
@@ -18,29 +33,35 @@ html,body{margin:0;height:100%;background:#000;color:#fff;overflow:hidden;
 #panel label span{width:48px;flex:none;color:#fffc}
 #panel input{flex:1;accent-color:#fff}
 #panel output{width:30px;text-align:right;font-variant-numeric:tabular-nums}
-#shutter{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 112px);transform:translateX(-50%);
-  width:70px;height:70px;border-radius:50%;border:4px solid #fff;background:none;padding:4px;display:flex}
-#shutter i{flex:1;border-radius:50%;background:#fff;transition:transform .12s}
-#shutter:active i{transform:scale(.88)}
-#flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s}
+
+#flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none}
+#toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 64px);transform:translateX(-50%);
+  background:#000c;padding:8px 14px;border-radius:999px;font-size:12.5px;display:none;white-space:nowrap}
 #start{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
   background:#000;text-align:center;padding:24px}
 #start p{margin:0;font-size:13px;color:#fff9;max-width:280px;line-height:1.6}
-#go{border:none;background:#fff;color:#000;font:inherit;font-weight:700;font-size:15px;border-radius:999px;padding:12px 26px}
+#go{border:none;background:#fff;color:#000;font-weight:700;font-size:15px;border-radius:999px;padding:12px 26px}
 </style>
 </head>
 <body>
 <canvas id="cv" width="720" height="1280"></canvas>
 <video id="vid" playsinline muted autoplay></video>
 
+<div id="top"><button class="pill" id="bSet">문자<small id="lSet">.-*#</small></button></div>
+
+<div id="row">
+  <button class="pill" id="bMode">ASCII</button>
+  <button id="shutter" aria-label="촬영"><i></i></button>
+  <button class="pill" id="bCopy">복사</button>
+</div>
+
 <div id="panel">
-  <label><span>글자 크기</span><input id="sSize" type="range" min="6" max="28" step="1" value="12"><output id="oSize">12</output></label>
+  <label><span>크기</span><input id="sSize" type="range" min="6" max="40" step="1" value="12"><output id="oSize">12</output></label>
   <label><span>대비</span><input id="sCon" type="range" min="0.5" max="3" step="0.05" value="1.4"><output id="oCon">1.4</output></label>
 </div>
 
-<button id="shutter" aria-label="촬영"><i></i></button>
 <div id="flash"></div>
-
+<div id="toast"></div>
 <div id="start">
   <p id="msg">카메라를 켜면 위에는 원본, 아래에는 ASCII가 나와요.</p>
   <button id="go">카메라 켜기</button>
@@ -55,8 +76,45 @@ const off = document.createElement('canvas');
 const octx = off.getContext('2d', { willReadFrequently: true });
 
 const W = 720, H = 1280, P = H / 2;
-const RAMP = '.-*#';          // 어두움 → 밝음
-let size = 12, contrast = 1.4, ready = false, lastT = 0;
+const RAMPS = ['.-*#', '.,-:;~=+*#%@'];               // 어두움 → 밝음
+// 사물 이모지와 대표 색
+const EMOJI = [
+  ['🖤', 20, 20, 22], ['🎱', 45, 45, 50], ['🩶', 140, 140, 145], ['🤍', 240, 240, 240], ['🥚', 235, 220, 190],
+  ['🍎', 215, 40, 40], ['🍓', 230, 60, 75], ['🍊', 245, 140, 30], ['🍑', 250, 175, 135], ['🍋', 250, 215, 60],
+  ['🍏', 145, 205, 60], ['🥦', 65, 140, 55], ['🫐', 60, 85, 165], ['🧊', 175, 215, 240], ['🍇', 130, 65, 150],
+  ['🍆', 85, 40, 95], ['🌸', 245, 185, 205], ['🥥', 125, 85, 55], ['🍫', 80, 45, 30], ['🍞', 210, 160, 95]
+];
+
+let mode = 'ascii', set = 0, contrast = 1.4, ready = false, lastT = 0;
+const sizes = { ascii: 12, emoji: 22 };
+let lastText = '';
+
+// 색 → 이모지 번호 표 (32단계 x 3)
+const LUT = new Uint8Array(32 * 32 * 32);
+for (let r = 0; r < 32; r++) for (let g = 0; g < 32; g++) for (let b = 0; b < 32; b++) {
+  const R = r * 8 + 4, G = g * 8 + 4, B = b * 8 + 4;
+  let best = 0, bd = 1e9;
+  EMOJI.forEach((e, i) => {
+    const dr = R - e[1], dg = G - e[2], db = B - e[3];
+    const dd = 2 * dr * dr + 4 * dg * dg + 3 * db * db;
+    if (dd < bd) { bd = dd; best = i; }
+  });
+  LUT[(r << 10) | (g << 5) | b] = best;
+}
+
+// 이모지를 칸 크기로 미리 그려 두기
+let sprites = [], spriteSize = 0;
+function buildSprites(s) {
+  spriteSize = s;
+  sprites = EMOJI.map(e => {
+    const c = document.createElement('canvas'); c.width = c.height = Math.ceil(s);
+    const x = c.getContext('2d');
+    x.font = `${s * 0.86}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(e[0], s / 2, s / 2 + s * 0.04);
+    return c;
+  });
+}
 
 function cover(c, v, w, h, ta) {
   const vw = v.videoWidth, vh = v.videoHeight;
@@ -66,37 +124,60 @@ function cover(c, v, w, h, ta) {
   c.save(); c.translate(w, 0); c.scale(-1, 1);       // 셀카처럼 좌우 반전
   c.drawImage(v, sx, sy, sw, sh, 0, 0, w, h); c.restore();
 }
+const clamp = v => v < 0 ? 0 : v > 255 ? 255 : v;
 
 function draw() {
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   if (!ready) return;
   cover(ctx, vid, W, P, W / P);                       // 위: 원본
 
-  const cw = size * 0.6, ch = size;                   // 고정폭 글자 비율
+  const size = sizes[mode];
+  const cw = mode === 'emoji' ? size : size * 0.6, ch = size;
   const cols = Math.floor(W / cw), rows = Math.floor(P / ch);
   if (off.width !== cols || off.height !== rows) { off.width = cols; off.height = rows; }
   cover(octx, vid, cols, rows, (cols * cw) / (rows * ch));
   const d = octx.getImageData(0, 0, cols, rows).data;
-
   const ox = (W - cols * cw) / 2, oy = P + (P - rows * ch) / 2;
-  ctx.fillStyle = '#fff';
-  ctx.font = `${size}px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const n = RAMP.length;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const k = (r * cols + c) * 4;
-      let l = (0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2]) / 255;
-      l = (l - .5) * contrast + .5;
-      const i = Math.max(0, Math.min(n - 1, Math.floor(l * n)));
-      ctx.fillText(RAMP[i], ox + c * cw + cw / 2, oy + r * ch + ch / 2);
+  const lines = [];
+
+  if (mode === 'ascii') {
+    const ramp = RAMPS[set], n = ramp.length;
+    ctx.fillStyle = '#fff';
+    ctx.font = `${size}px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let r = 0; r < rows; r++) {
+      let line = '';
+      for (let c = 0; c < cols; c++) {
+        const k = (r * cols + c) * 4;
+        let l = (0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2]) / 255;
+        l = (l - .5) * contrast + .5;
+        const g = ramp[Math.max(0, Math.min(n - 1, Math.floor(l * n)))];
+        line += g;
+        ctx.fillText(g, ox + c * cw + cw / 2, oy + r * ch + ch / 2);
+      }
+      lines.push(line);
+    }
+  } else {
+    if (spriteSize !== size) buildSprites(size);
+    for (let r = 0; r < rows; r++) {
+      let line = '';
+      for (let c = 0; c < cols; c++) {
+        const k = (r * cols + c) * 4;
+        const R = clamp((d[k] - 128) * contrast + 128), G = clamp((d[k + 1] - 128) * contrast + 128), B = clamp((d[k + 2] - 128) * contrast + 128);
+        const i = LUT[((R >> 3) << 10) | ((G >> 3) << 5) | (B >> 3)];
+        line += EMOJI[i][0];
+        ctx.drawImage(sprites[i], ox + c * cw, oy + r * ch);
+      }
+      lines.push(line);
     }
   }
+  lastText = lines.join('\n');
 }
 
 function loop(t) { requestAnimationFrame(loop); if (t - lastT >= 30) { lastT = t; draw(); } }
 requestAnimationFrame(loop);
 
+// ---------- 카메라 ----------
 async function startCam() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     $('#msg').textContent = '카메라는 HTTPS 주소에서만 켜져요.'; return;
@@ -113,7 +194,34 @@ async function startCam() {
 }
 $('#go').onclick = startCam;
 
-// 촬영: 지금 화면(UI 제외)을 PNG로 저장 / 공유
+// ---------- 조절 ----------
+function syncSize() { $('#sSize').value = sizes[mode]; $('#oSize').textContent = sizes[mode]; }
+$('#sSize').oninput = e => { sizes[mode] = +e.target.value; $('#oSize').textContent = sizes[mode]; };
+$('#sCon').oninput = e => { contrast = +e.target.value; $('#oCon').textContent = contrast.toFixed(1); };
+$('#bMode').onclick = () => {
+  mode = mode === 'ascii' ? 'emoji' : 'ascii';
+  $('#bMode').textContent = mode === 'ascii' ? 'ASCII' : 'EMOJI';
+  $('#top').style.visibility = mode === 'ascii' ? 'visible' : 'hidden';
+  syncSize();
+};
+$('#bSet').onclick = () => { set = (set + 1) % RAMPS.length; $('#lSet').textContent = set ? '.,-:;~…@' : '.-*#'; };
+
+let toastTimer;
+function toast(m) { const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.style.display = 'none', 1800); }
+
+// ---------- 복사: 지금 화면의 문자/이모지를 텍스트로 ----------
+$('#bCopy').onclick = async () => {
+  if (!ready || !lastText) return;
+  const text = lastText;
+  try { await navigator.clipboard.writeText(text); toast('복사했어요'); return; } catch (e) {}
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+  const ok = document.execCommand && document.execCommand('copy'); ta.remove();
+  toast(ok ? '복사했어요' : '복사하지 못했어요');
+};
+
+// ---------- 촬영: 지금 화면(UI 제외)을 PNG로 ----------
 $('#shutter').onclick = () => {
   if (!ready) return;
   const f = $('#flash'); f.style.transition = 'none'; f.style.opacity = '.8';
@@ -131,8 +239,6 @@ $('#shutter').onclick = () => {
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }, 'image/png');
 };
-$('#sSize').oninput = e => { size = +e.target.value; $('#oSize').textContent = size; };
-$('#sCon').oninput = e => { contrast = +e.target.value; $('#oCon').textContent = contrast.toFixed(1); };
 })();
 </script>
 </body>
