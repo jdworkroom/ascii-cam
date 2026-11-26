@@ -151,7 +151,7 @@ function buildSprites(s) {
 }
 
 function cover(c, v, w, h, ta) {
-  const vw = v.videoWidth, vh = v.videoHeight;
+  const vw = v.videoWidth || v.width, vh = v.videoHeight || v.height;
   if (!vw || !vh) return;
   let sx = 0, sy = 0, sw = vw, sh = vh;
   if (vw / vh > ta) { sw = vh * ta; sx = (vw - sw) / 2; } else { sh = vw / ta; sy = (vh - sh) / 2; }
@@ -159,6 +159,59 @@ function cover(c, v, w, h, ta) {
   c.drawImage(v, sx, sy, sw, sh, 0, 0, w, h); c.restore();
 }
 const clamp = v => v < 0 ? 0 : v > 255 ? 255 : v;
+
+// ---------- 인물 분리 (MediaPipe Selfie Segmenter) ----------
+const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3';
+const MODEL = 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite';
+let seg = null, segState = 'off';                     // off → loading → on / fail
+const segCv = document.createElement('canvas'), segCtx = segCv.getContext('2d');
+const maskCv = document.createElement('canvas'), maskCtx = maskCv.getContext('2d');
+const gmCv = document.createElement('canvas'), gmCtx = gmCv.getContext('2d', { willReadFrequently: true });
+let maskImg = null, cellMask = null, lastTs = 0;
+
+async function loadSeg() {
+  if (segState !== 'off') return;
+  segState = 'loading'; toast('인물 인식 준비 중…', 4000);
+  try {
+    const { FilesetResolver, ImageSegmenter } = await import(`${MP}/vision_bundle.mjs`);
+    const files = await FilesetResolver.forVisionTasks(`${MP}/wasm`);
+    const make = delegate => ImageSegmenter.createFromOptions(files, {
+      baseOptions: { modelAssetPath: MODEL, delegate },
+      runningMode: 'VIDEO', outputConfidenceMasks: true, outputCategoryMask: false });
+    try { seg = await make('GPU'); } catch (e) { seg = await make('CPU'); }
+    segState = 'on'; toast('인물만 보여요');
+  } catch (e) {
+    console.error(e); segState = 'fail'; toast('인물 인식을 불러오지 못해서 전체 화면으로 보여요', 3000);
+  }
+}
+
+// 프레임마다: 작은 해상도로 인물 확률을 구해서 칸(cols x rows) 단위 마스크로 만든다
+function updateMask(cols, rows, ta) {
+  const vw = vid.videoWidth, vh = vid.videoHeight;
+  if (!vw || !vh) return null;
+  const sw = 256, sh = Math.round(256 * vh / vw);
+  if (segCv.width !== sw || segCv.height !== sh) {
+    segCv.width = maskCv.width = sw; segCv.height = maskCv.height = sh;
+    maskImg = maskCtx.createImageData(sw, sh);
+  }
+  segCtx.drawImage(vid, 0, 0, sw, sh);
+  const ts = Math.max(performance.now(), lastTs + 1); lastTs = ts;
+  const res = seg.segmentForVideo(segCv, ts);
+  const m = res.confidenceMasks && res.confidenceMasks[0];
+  if (!m) { res.close && res.close(); return null; }
+  const f = m.getAsFloat32Array(), a = maskImg.data;
+  for (let i = 0; i < f.length; i++) { const j = i * 4; a[j] = a[j + 1] = a[j + 2] = 255; a[j + 3] = f[i] * 255; }
+  res.close ? res.close() : m.close();
+  maskCtx.putImageData(maskImg, 0, 0);
+
+  if (gmCv.width !== cols || gmCv.height !== rows) { gmCv.width = cols; gmCv.height = rows; cellMask = null; }
+  gmCtx.clearRect(0, 0, cols, rows);
+  cover(gmCtx, maskCv, cols, rows, ta);
+  const g = gmCtx.getImageData(0, 0, cols, rows).data;
+  if (!cellMask || cellMask.length !== cols * rows) cellMask = new Float32Array(cols * rows);
+  for (let i = 0; i < cols * rows; i++) cellMask[i] = cellMask[i] * .4 + (g[i * 4 + 3] / 255) * .6;   // 깜빡임 줄이기
+  return cellMask;
+}
 
 function draw() {
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
@@ -170,8 +223,11 @@ function draw() {
   const cw = mode === 'emoji' ? size : size * cs.w, ch = size;
   const cols = Math.floor(W / cw), rows = Math.floor(P / ch);
   if (off.width !== cols || off.height !== rows) { off.width = cols; off.height = rows; }
-  cover(octx, vid, cols, rows, (cols * cw) / (rows * ch));
+  const ta = (cols * cw) / (rows * ch);
+  cover(octx, vid, cols, rows, ta);
   const d = octx.getImageData(0, 0, cols, rows).data;
+  let mask = null;
+  if (segState === 'on') { try { mask = updateMask(cols, rows, ta); } catch (e) { console.error(e); } }
   const ox = (W - cols * cw) / 2, oy = P + (P - rows * ch) / 2;
   const lines = [];
 
@@ -184,6 +240,7 @@ function draw() {
       let line = '';
       for (let c = 0; c < cols; c++) {
         const k = (r * cols + c) * 4;
+        if (mask && mask[r * cols + c] < .5) { line += cs.w === 1 ? '\u3000' : ' '; continue; }
         let l = (0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2]) / 255;
         l = (l - .5) * contrast + .5;
         const g = lut[Math.max(0, Math.min(255, Math.round(l * 255)))];
@@ -198,6 +255,7 @@ function draw() {
       let line = '';
       for (let c = 0; c < cols; c++) {
         const k = (r * cols + c) * 4;
+        if (mask && mask[r * cols + c] < .5) { line += '\u3000'; continue; }
         const R = clamp((d[k] - 128) * contrast + 128), G = clamp((d[k + 1] - 128) * contrast + 128), B = clamp((d[k + 2] - 128) * contrast + 128);
         const i = LUT[((R >> 3) << 10) | ((G >> 3) << 5) | (B >> 3)];
         line += EMOJI[i][0];
@@ -221,6 +279,7 @@ async function startCam() {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
     vid.srcObject = stream; await vid.play();
     ready = true; $('#start').style.display = 'none';
+    loadSeg();
   } catch (e) {
     $('#msg').textContent = e && e.name === 'NotAllowedError'
       ? '카메라 권한이 막혀 있어요. 브라우저 설정에서 허용해 주세요.'
@@ -245,7 +304,7 @@ $('#bMode').onclick = () => {
 $('#bSet').onclick = () => { set = (set + 1) % SETS.length; $('#lSet').textContent = SETS[set].name; };
 
 let toastTimer;
-function toast(m) { const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.style.display = 'none', 1800); }
+function toast(m, ms = 1800) { const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.style.display = 'none', ms); }
 
 // ---------- 복사: 지금 화면의 문자/이모지를 텍스트로 ----------
 $('#bCopy').onclick = async () => {
