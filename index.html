@@ -61,6 +61,11 @@ body.open #dim{opacity:1;pointer-events:auto}
 .slider input{flex:1;accent-color:#fff}
 .slider output{width:32px;text-align:right;font-variant-numeric:tabular-nums}
 
+/* 전체 화면: 하단 UI 숨기고 두 컷만 */
+body.full{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+body.full #bar, body.full #flip{display:none}
+body.full #stage{padding:0}
+body.full #cv{border-radius:0;box-shadow:none}
 #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none}
 #toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 20px);transform:translateX(-50%);
   background:#1c1c1ee6;padding:8px 14px;border-radius:999px;font-size:12.5px;display:none;white-space:nowrap}
@@ -407,16 +412,16 @@ $('#segMode').onclick = e => {
   mode = b.dataset.m; syncUI();
 };
 
-// 아래 칸을 탭하면 글자 종류가 바뀜: 기본 → 코드 → 영문 → 한글 → 숫자 → 이모지 → 기본 …
+// 탭: 아래 칸 → 글자 종류 바꾸기 (기본 → 코드 → 영문 → 한글 → 숫자), 그 밖 → 전체 화면 켜기/끄기
 $('#cv').addEventListener('click', e => {
   if (!ready) return;
   const r = cv.getBoundingClientRect(), y = (e.clientY - r.top) / r.height * H;
-  if (y < CUT2.y || y > CUT2.y + CH) return;
-  if (mode === 'emoji') { mode = 'ascii'; set = 0; }
-  else if (set === SETS.length - 1) mode = 'emoji';
-  else set++;
-  syncUI();
-  toast(mode === 'emoji' ? '이모지' : SETS[set].name, 900);
+  if (y >= CUT2.y && y <= CUT2.y + CH) {
+    mode = 'ascii'; set = (set + 1) % SETS.length;
+    syncUI(); toast(SETS[set].name, 900);
+  } else {
+    body.classList.toggle('full');
+  }
 });
 
 let toastTimer;
