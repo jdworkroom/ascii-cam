@@ -56,7 +56,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 </div>
 
 <div id="panel">
-  <label><span>크기</span><input id="sSize" type="range" min="37" max="80" step="1" value="37"><output id="oSize">37</output></label>
+  <label><span>크기</span><input id="sSize" type="range" min="6" max="80" step="1" value="37"><output id="oSize">37</output></label>
   <label><span>대비</span><input id="sCon" type="range" min="0.5" max="3" step="0.05" value="1.4"><output id="oCon">1.4</output></label>
 </div>
 
@@ -84,6 +84,8 @@ const SETS = [
   { name: '영문', chars: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', font: MONO, w: 0.6 },
   { name: '한글', chars: 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ',
     font: '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR","Malgun Gothic",sans-serif', w: 1 },
+  { name: '가나', chars: 'あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをんアイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン',
+    font: '"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Noto Sans CJK JP",sans-serif', w: 1 },
   { name: '숫자', chars: '0123456789', font: MONO, w: 0.6 }
 ];
 // 각 문자 집합: 글자마다 잉크 양을 재고, 밝기(0~255) → 글자 표를 만든다
@@ -118,7 +120,7 @@ const EMOJI = [
 
 let mode = 'ascii', set = 0, contrast = 1.4, ready = false, lastT = 0;
 const sizes = { ascii: 37, emoji: 22 };
-const RANGE = { ascii: [37, 80], emoji: [12, 60] };
+const RANGE = { ascii: [6, 80], emoji: [12, 60] };
 let lastText = '';
 
 // 색 → 이모지 번호 표 (32단계 x 3)
